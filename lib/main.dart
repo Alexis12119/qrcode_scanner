@@ -6,12 +6,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: 'https://eyzscfnyniowwatjehuh.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5enNjZm55bmlvd3dhdGplaHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU4MTE4NDksImV4cCI6MjA0MTM4Nzg0OX0.7vjJL_PtOkq2rEDqAXB4yyJeYL0cgFBaDa3wefs_pPQ',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5enNjZm55bmlvd3dhdGplaHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU4MTE4NDksImV4cCI6MjA0MTM4Nzg0OX0.7vjJL_PtOkq2rEDqAXB4yyJeYL0cgFBaDa3wefs_pPQ',
   );
   runApp(const MyApp());
 }
-
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -35,8 +34,8 @@ class QRScannerScreen extends StatefulWidget {
   QRScannerScreenState createState() => QRScannerScreenState();
 }
 
-
-class QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProviderStateMixin {
+class QRScannerScreenState extends State<QRScannerScreen>
+    with SingleTickerProviderStateMixin {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
   bool isScanning = false;
@@ -80,6 +79,7 @@ class QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProvi
       ),
     );
   }
+
   Widget buildSalesTab() {
     return Column(
       children: <Widget>[
@@ -104,7 +104,8 @@ class QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProvi
         ),
         ElevatedButton(
           onPressed: _toggleScanning,
-          child: Text(isScanning ? 'Stop Sales Scanning' : 'Start Sales Scanning'),
+          child:
+              Text(isScanning ? 'Stop Sales Scanning' : 'Start Sales Scanning'),
         ),
       ],
     );
@@ -134,7 +135,9 @@ class QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProvi
         ),
         ElevatedButton(
           onPressed: _toggleScanning,
-          child: Text(isScanning ? 'Stop Maintenance Scanning' : 'Start Maintenance Scanning'),
+          child: Text(isScanning
+              ? 'Stop Maintenance Scanning'
+              : 'Start Maintenance Scanning'),
         ),
       ],
     );
@@ -172,179 +175,178 @@ class QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProvi
     });
     controller?.pauseCamera();
   }
-void _showSalesConfirmationDialog(String qrCode) {
-  TextEditingController itemCountController = TextEditingController();
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Confirm Sale'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('QR code: $qrCode'),
-            const SizedBox(height: 10),
-            TextField(
-              controller: itemCountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Enter item count',
-              ),
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () {
-              Navigator.of(context).pop();
-              _toggleScanning();
-            },
-          ),
-          TextButton(
-            child: const Text('Confirm'),
-            onPressed: () {
-              final itemCount = int.tryParse(itemCountController.text);
-              if (itemCount == null || itemCount <= 0) {
-                _showErrorSnackBar('Please enter a valid item count.');
-              } else {
-                Navigator.of(context).pop();
-                _addToSalesDatabase(qrCode, itemCount);
-              }
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
+  void _showSalesConfirmationDialog(String qrCode) {
+    TextEditingController itemCountController = TextEditingController();
 
-Future<void> _addToSalesDatabase(String qrCode, int itemCount) async {
-  final productId = int.parse(qrCode);
-  print('Product ID: $productId');
-
-  try {
-    // Fetch the price and item_count from the inventory table
-    final inventoryResponse = await Supabase.instance.client
-        .from('inventory')
-        .select('price, item_count')
-        .eq('id', productId)
-        .single();
-
-    final price = inventoryResponse['price'];
-    final inventoryItemCount = inventoryResponse['item_count'];
-
-    if (price == null || inventoryItemCount == null) {
-      _showErrorSnackBar('Product not found for ID: $productId');
-      return;
-    }
-
-    if (itemCount > inventoryItemCount) {
-      _showErrorSnackBar('Not enough items in inventory. Available: $inventoryItemCount');
-      return;
-    }
-
-    final amount = price * itemCount;
-
-    // Insert sale into sales table
-    final insertResponse = await Supabase.instance.client
-        .from('sales')
-        .insert({
-          'product_id': productId,
-          'item_count': itemCount,
-          'amount': amount,
-        });
-
-    // Subtract the item count from inventory
-    await Supabase.instance.client
-        .from('inventory')
-        .update({'item_count': inventoryItemCount - itemCount})
-        .eq('id', productId);
-
-    print('Insert response: $insertResponse');
-    _showSuccessSnackBar('Sale added successfully!');
-  } catch (e, stackTrace) {
-    print('Error details: $e');
-    print('Stack trace: $stackTrace');
-    _showErrorSnackBar('An error occurred: $e');
-  } finally {
-    _toggleScanning();
-  }
-}
-
-Future<void> _showMaintenanceRecords(String qrCode) async {
-  final equipmentId = int.parse(qrCode);
-  print('Equipment ID: $equipmentId');
-
-  try {
-    // Fetch maintenance records for the given equipment
-    final maintenanceResponse = await Supabase.instance.client
-        .from('maintenance')
-        .select('date_maintained, equipment_name')
-        .eq('equipment_id', equipmentId)
-        .order('date_maintained', ascending: false);
-
-    print('Maintenance records: $maintenanceResponse');
-
-    if (maintenanceResponse.isEmpty) {
-      _showErrorSnackBar('No maintenance records found for equipment ID: $equipmentId');
-      return;
-    }
-
-    // Fetch days_interval from the equipments table
-    final equipmentResponse = await Supabase.instance.client
-        .from('equipments')
-        .select('days_interval, name')
-        .eq('id', equipmentId)
-        .single();
-
-    print('Equipment response: $equipmentResponse');
-
-    final equipmentName = equipmentResponse['name'];
-    final daysInterval = equipmentResponse['days_interval'];
-
-    final lastMaintenanceDate = DateTime.parse(maintenanceResponse.first['date_maintained']);
-    final nextMaintenanceDate = lastMaintenanceDate.add(Duration(days: daysInterval));
-
-    // Show the maintenance records in a dialog
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Maintenance Records for $equipmentName'),
+          title: const Text('Confirm Sale'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text('Previous Maintenance Date: $lastMaintenanceDate'),
-              Text('Next Maintenance Date: $nextMaintenanceDate'),
-              const Divider(),
-              ...maintenanceResponse.map<Widget>((record) {
-                return ListTile(
-                  title: Text('Date Maintained: ${record['date_maintained']}'),
-                  subtitle: Text('Equipment: ${record['equipment_name']}'),
-                );
-              }).toList(),
+            children: [
+              Text('QR code: $qrCode'),
+              const SizedBox(height: 10),
+              TextField(
+                controller: itemCountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Enter item count',
+                ),
+              ),
             ],
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Close'),
+              child: const Text('Cancel'),
               onPressed: () {
                 Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Confirm'),
+              onPressed: () {
+                final itemCount = int.tryParse(itemCountController.text);
+                if (itemCount == null || itemCount <= 0) {
+                  _showErrorSnackBar('Please enter a valid item count.');
+                } else {
+                  Navigator.of(context).pop();
+                  _addToSalesDatabase(qrCode, itemCount);
+                }
               },
             ),
           ],
         );
       },
     );
-
-  } catch (e, stackTrace) {
-    print('Error: $e');
-    print('Stack trace: $stackTrace');
-    _showErrorSnackBar('An error occurred: $e');
   }
-}
+
+  Future<void> _addToSalesDatabase(String qrCode, int itemCount) async {
+    final productId = int.parse(qrCode);
+    print('Product ID: $productId');
+
+    try {
+      // Fetch the price and item_count from the inventory table
+      final inventoryResponse = await Supabase.instance.client
+          .from('inventory')
+          .select('price, item_count')
+          .eq('id', productId)
+          .single();
+
+      final price = inventoryResponse['price'];
+      final inventoryItemCount = inventoryResponse['item_count'];
+
+      if (price == null || inventoryItemCount == null) {
+        _showErrorSnackBar('Product not found for ID: $productId');
+        return;
+      }
+
+      if (itemCount > inventoryItemCount) {
+        _showErrorSnackBar(
+            'Not enough items in inventory. Available: $inventoryItemCount');
+        return;
+      }
+
+      final amount = price * itemCount;
+
+      // Insert sale into sales table
+      final insertResponse =
+          await Supabase.instance.client.from('sales').insert({
+        'product_id': productId,
+        'item_count': itemCount,
+        'amount': amount,
+      });
+
+      // Subtract the item count from inventory
+      await Supabase.instance.client.from('inventory').update(
+          {'item_count': inventoryItemCount - itemCount}).eq('id', productId);
+
+      print('Insert response: $insertResponse');
+      _showSuccessSnackBar('Sale added successfully!');
+    } catch (e, stackTrace) {
+      print('Error details: $e');
+      print('Stack trace: $stackTrace');
+      _showErrorSnackBar('An error occurred: $e');
+    }   }
+
+  Future<void> _showMaintenanceRecords(String qrCode) async {
+    final equipmentId = int.parse(qrCode);
+    print('Equipment ID: $equipmentId');
+
+    try {
+      // Fetch maintenance records for the given equipment
+      final maintenanceResponse = await Supabase.instance.client
+          .from('maintenance')
+          .select('date_maintained, equipment_name')
+          .eq('equipment_id', equipmentId)
+          .order('date_maintained', ascending: false);
+
+      print('Maintenance records: $maintenanceResponse');
+
+      if (maintenanceResponse.isEmpty) {
+        _showErrorSnackBar(
+            'No maintenance records found for equipment ID: $equipmentId');
+        return;
+      }
+
+      // Fetch days_interval from the equipments table
+      final equipmentResponse = await Supabase.instance.client
+          .from('equipments')
+          .select('days_interval, name')
+          .eq('id', equipmentId)
+          .single();
+
+      print('Equipment response: $equipmentResponse');
+
+      final equipmentName = equipmentResponse['name'];
+      final daysInterval = equipmentResponse['days_interval'];
+
+      final lastMaintenanceDate =
+          DateTime.parse(maintenanceResponse.first['date_maintained']);
+      final nextMaintenanceDate =
+          lastMaintenanceDate.add(Duration(days: daysInterval));
+
+      // Show the maintenance records in a dialog
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Maintenance Records for $equipmentName'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text('Previous Maintenance Date: $lastMaintenanceDate'),
+                Text('Next Maintenance Date: $nextMaintenanceDate'),
+                const Divider(),
+                ...maintenanceResponse.map<Widget>((record) {
+                  return ListTile(
+                    title:
+                        Text('Date Maintained: ${record['date_maintained']}'),
+                    subtitle: Text('Equipment: ${record['equipment_name']}'),
+                  );
+                }).toList(),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Close'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e, stackTrace) {
+      print('Error: $e');
+      print('Stack trace: $stackTrace');
+      _showErrorSnackBar('An error occurred: $e');
+    }
+  }
+
   // Maintenance confirmation dialog
   void _showMaintenanceConfirmationDialog(String qrCode) {
     showDialog(
@@ -352,13 +354,13 @@ Future<void> _showMaintenanceRecords(String qrCode) async {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirm Maintenance'),
-          content: Text('Do you want to retrieve maintenance records for equipment ID: $qrCode?'),
+          content: Text(
+              'Do you want to retrieve maintenance records for equipment ID: $qrCode?'),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
               onPressed: () {
                 Navigator.of(context).pop();
-                _toggleScanning();
               },
             ),
             TextButton(
@@ -373,6 +375,7 @@ Future<void> _showMaintenanceRecords(String qrCode) async {
       },
     );
   }
+
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -398,5 +401,3 @@ Future<void> _showMaintenanceRecords(String qrCode) async {
     super.dispose();
   }
 }
-
-
