@@ -225,20 +225,29 @@ Future<void> _addToSalesDatabase(String qrCode, int itemCount) async {
   print('Product ID: $productId');
 
   try {
-    final priceResponse = await Supabase.instance.client
+    // Fetch the price and item_count from the inventory table
+    final inventoryResponse = await Supabase.instance.client
         .from('inventory')
-        .select('price')
+        .select('price, item_count')
         .eq('id', productId)
         .single();
 
-    final price = priceResponse['price'];
-    if (price == null) {
-      _showErrorSnackBar('Price not found for product ID: $productId');
+    final price = inventoryResponse['price'];
+    final inventoryItemCount = inventoryResponse['item_count'];
+
+    if (price == null || inventoryItemCount == null) {
+      _showErrorSnackBar('Product not found for ID: $productId');
+      return;
+    }
+
+    if (itemCount > inventoryItemCount) {
+      _showErrorSnackBar('Not enough items in inventory. Available: $inventoryItemCount');
       return;
     }
 
     final amount = price * itemCount;
 
+    // Insert sale into sales table
     final insertResponse = await Supabase.instance.client
         .from('sales')
         .insert({
@@ -246,6 +255,12 @@ Future<void> _addToSalesDatabase(String qrCode, int itemCount) async {
           'item_count': itemCount,
           'amount': amount,
         });
+
+    // Subtract the item count from inventory
+    await Supabase.instance.client
+        .from('inventory')
+        .update({'item_count': inventoryItemCount - itemCount})
+        .eq('id', productId);
 
     print('Insert response: $insertResponse');
     _showSuccessSnackBar('Sale added successfully!');
@@ -257,6 +272,7 @@ Future<void> _addToSalesDatabase(String qrCode, int itemCount) async {
     _toggleScanning();
   }
 }
+
 Future<void> _showMaintenanceRecords(String qrCode) async {
   final equipmentId = int.parse(qrCode);
   print('Equipment ID: $equipmentId');
