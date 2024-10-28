@@ -178,6 +178,7 @@ class QRScannerScreenState extends State<QRScannerScreen>
 
   void _showSalesConfirmationDialog(String qrCode) {
     TextEditingController itemCountController = TextEditingController();
+    TextEditingController studentIdController = TextEditingController();
 
     showDialog(
       context: context,
@@ -196,6 +197,14 @@ class QRScannerScreenState extends State<QRScannerScreen>
                   labelText: 'Enter item count',
                 ),
               ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: studentIdController,
+                keyboardType: TextInputType.text,
+                decoration: const InputDecoration(
+                  labelText: 'Enter student ID',
+                ),
+              ),
             ],
           ),
           actions: <Widget>[
@@ -209,11 +218,15 @@ class QRScannerScreenState extends State<QRScannerScreen>
               child: const Text('Confirm'),
               onPressed: () {
                 final itemCount = int.tryParse(itemCountController.text);
+                final studentId = studentIdController.text.trim();
+
                 if (itemCount == null || itemCount <= 0) {
                   _showErrorSnackBar('Please enter a valid item count.');
+                } else if (studentId.isEmpty) {
+                  _showErrorSnackBar('Please enter a valid student ID.');
                 } else {
                   Navigator.of(context).pop();
-                  _addToSalesDatabase(qrCode, itemCount);
+                  _addToSalesDatabase(qrCode, itemCount, studentId);
                 }
               },
             ),
@@ -223,9 +236,11 @@ class QRScannerScreenState extends State<QRScannerScreen>
     );
   }
 
-  Future<void> _addToSalesDatabase(String qrCode, int itemCount) async {
+  Future<void> _addToSalesDatabase(
+      String qrCode, int itemCount, String studentId) async {
     final productId = int.parse(qrCode);
     print('Product ID: $productId');
+    print("Student ID: $studentId");
 
     try {
       // Fetch the price and item_count from the inventory table
@@ -257,6 +272,7 @@ class QRScannerScreenState extends State<QRScannerScreen>
         'product_id': productId,
         'item_count': itemCount,
         'amount': amount,
+        'student_id': studentId,
       });
 
       // Subtract the item count from inventory
@@ -269,7 +285,8 @@ class QRScannerScreenState extends State<QRScannerScreen>
       print('Error details: $e');
       print('Stack trace: $stackTrace');
       _showErrorSnackBar('An error occurred: $e');
-    }   }
+    }
+  }
 
   Future<void> _showMaintenanceRecords(String qrCode) async {
     final equipmentId = int.parse(qrCode);
