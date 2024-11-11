@@ -178,34 +178,61 @@ class QRScannerScreenState extends State<QRScannerScreen>
 
   void _showSalesConfirmationDialog(String qrCode) {
     TextEditingController itemCountController = TextEditingController();
-    TextEditingController studentIdController = TextEditingController();
+    TextEditingController studentNameController = TextEditingController();
+    TextEditingController remarksController = TextEditingController();
+    TextEditingController itemDescController = TextEditingController();
+    TextEditingController crNumberController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirm Sale'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('QR code: $qrCode'),
-              const SizedBox(height: 10),
-              TextField(
-                controller: itemCountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Enter item count',
+          title: const Text('Add Sales Record'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('QR code: $qrCode'),
+                const SizedBox(height: 10),
+                // Product ID (from qrCode)
+                TextField(
+                  controller: itemCountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Enter item count',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: studentIdController,
-                keyboardType: TextInputType.text,
-                decoration: const InputDecoration(
-                  labelText: 'Enter student ID',
+                const SizedBox(height: 10),
+                TextField(
+                  controller: studentNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Issued to (Student Name)',
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                TextField(
+                  controller: remarksController,
+                  decoration: const InputDecoration(
+                    labelText: 'Remarks',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: itemDescController,
+                  decoration: const InputDecoration(
+                    labelText: 'Item Description',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: crNumberController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'CR Number',
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: <Widget>[
             TextButton(
@@ -215,18 +242,26 @@ class QRScannerScreenState extends State<QRScannerScreen>
               },
             ),
             TextButton(
-              child: const Text('Confirm'),
+              child: const Text('Add'),
               onPressed: () {
                 final itemCount = int.tryParse(itemCountController.text);
-                final studentId = studentIdController.text.trim();
+                final studentName = studentNameController.text.trim();
+                final remarks = remarksController.text.trim();
+                final itemDesc = itemDescController.text.trim();
+                final crNumber = crNumberController.text.trim();
 
                 if (itemCount == null || itemCount <= 0) {
                   _showErrorSnackBar('Please enter a valid item count.');
-                } else if (studentId.isEmpty) {
-                  _showErrorSnackBar('Please enter a valid student ID.');
                 } else {
                   Navigator.of(context).pop();
-                  _addToSalesDatabase(qrCode, itemCount, studentId);
+                  _addToSalesDatabase(
+                    qrCode,
+                    itemCount,
+                    studentName,
+                    remarks,
+                    itemDesc,
+                    crNumber,
+                  );
                 }
               },
             ),
@@ -237,13 +272,15 @@ class QRScannerScreenState extends State<QRScannerScreen>
   }
 
   Future<void> _addToSalesDatabase(
-      String qrCode, int itemCount, String studentId) async {
+      String qrCode,
+      int itemCount,
+      String studentName,
+      String remarks,
+      String itemDesc,
+      String crNumber) async {
     final productId = int.parse(qrCode);
-    print('Product ID: $productId');
-    print("Student ID: $studentId");
 
     try {
-      // Fetch the price and item_count from the inventory table
       final inventoryResponse = await Supabase.instance.client
           .from('inventory')
           .select('price, item_count')
@@ -266,20 +303,21 @@ class QRScannerScreenState extends State<QRScannerScreen>
 
       final amount = price * itemCount;
 
-      // Insert sale into sales table
-      final insertResponse =
-          await Supabase.instance.client.from('sales').insert({
+      // Insert sale into sales table with additional fields
+      await Supabase.instance.client.from('sales').insert({
         'product_id': productId,
         'item_count': itemCount,
         'amount': amount,
-        'student_id': studentId,
+        'student_name': studentName,
+        'remarks': remarks,
+        'item_desc': itemDesc,
+        'cr_number': crNumber,
       });
 
-      // Subtract the item count from inventory
+      // Update inventory
       await Supabase.instance.client.from('inventory').update(
           {'item_count': inventoryItemCount - itemCount}).eq('id', productId);
 
-      print('Insert response: $insertResponse');
       _showSuccessSnackBar('Sale added successfully!');
     } catch (e, stackTrace) {
       print('Error details: $e');
