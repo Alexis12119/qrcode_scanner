@@ -182,6 +182,9 @@ class QRScannerScreenState extends State<QRScannerScreen>
     TextEditingController remarksController = TextEditingController();
     TextEditingController itemDescController = TextEditingController();
     TextEditingController crNumberController = TextEditingController();
+    TextEditingController issuanceNoController = TextEditingController();
+    TextEditingController courseAndSectionController = TextEditingController();
+    TextEditingController studentIdController = TextEditingController();
 
     showDialog(
       context: context,
@@ -206,7 +209,21 @@ class QRScannerScreenState extends State<QRScannerScreen>
                 TextField(
                   controller: studentNameController,
                   decoration: const InputDecoration(
-                    labelText: 'Issued to (Student Name)',
+                    labelText: 'Issued to',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: studentIdController,
+                  decoration: const InputDecoration(
+                    labelText: 'Student ID',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: courseAndSectionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Course and Section',
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -228,7 +245,15 @@ class QRScannerScreenState extends State<QRScannerScreen>
                   controller: crNumberController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'CR Number',
+                    labelText: 'OR Number',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: issuanceNoController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Issuance No',
                   ),
                 ),
               ],
@@ -249,6 +274,9 @@ class QRScannerScreenState extends State<QRScannerScreen>
                 final remarks = remarksController.text.trim();
                 final itemDesc = itemDescController.text.trim();
                 final crNumber = crNumberController.text.trim();
+                final issuanceNo = issuanceNoController.text.trim();
+                final courseAndSection = courseAndSectionController.text.trim();
+                final studentId = studentIdController.text.trim();
 
                 if (itemCount == null || itemCount <= 0) {
                   _showErrorSnackBar('Please enter a valid item count.');
@@ -258,9 +286,12 @@ class QRScannerScreenState extends State<QRScannerScreen>
                     qrCode,
                     itemCount,
                     studentName,
+                    studentId,
+                    courseAndSection,
                     remarks,
                     itemDesc,
                     crNumber,
+                    issuanceNo,
                   );
                 }
               },
@@ -275,23 +306,27 @@ class QRScannerScreenState extends State<QRScannerScreen>
       String qrCode,
       int itemCount,
       String studentName,
+      String studentId,
+      String courseAndSection,
       String remarks,
       String itemDesc,
-      String crNumber) async {
-    final productId = int.parse(qrCode);
-
+      String crNumber,
+      String issuanceNo) async {
     try {
+      qrCode = qrCode.replaceAll('"', '');
+
       final inventoryResponse = await Supabase.instance.client
           .from('inventory')
           .select('price, item_count')
-          .eq('id', productId)
+          .eq('id', qrCode)
           .single();
 
       final price = inventoryResponse['price'];
       final inventoryItemCount = inventoryResponse['item_count'];
 
+      print(inventoryResponse);
       if (price == null || inventoryItemCount == null) {
-        _showErrorSnackBar('Product not found for ID: $productId');
+        _showErrorSnackBar('Product not found for ID: $qrCode');
         return;
       }
 
@@ -305,18 +340,21 @@ class QRScannerScreenState extends State<QRScannerScreen>
 
       // Insert sale into sales table with additional fields
       await Supabase.instance.client.from('sales').insert({
-        'product_id': productId,
+        'product_id': qrCode,
         'item_count': itemCount,
         'amount': amount,
         'student_name': studentName,
+        'student_id': studentId,
+        'course_and_section': courseAndSection,
         'remarks': remarks,
         'item_desc': itemDesc,
         'cr_number': crNumber,
+        'issuance_no': issuanceNo,
       });
 
       // Update inventory
       await Supabase.instance.client.from('inventory').update(
-          {'item_count': inventoryItemCount - itemCount}).eq('id', productId);
+          {'item_count': inventoryItemCount - itemCount}).eq('id', qrCode);
 
       _showSuccessSnackBar('Sale added successfully!');
     } catch (e, stackTrace) {
