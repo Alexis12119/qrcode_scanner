@@ -27,6 +27,32 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class SalesItem {
+  final String productId;
+  final int itemCount;
+  final double amount;
+  final String studentName;
+  final String studentId;
+  final String courseAndSection;
+  final String remarks;
+  final String itemDesc;
+  final String crNumber;
+  final String issuanceNo;
+
+  SalesItem({
+    required this.productId,
+    required this.itemCount,
+    required this.amount,
+    required this.studentName,
+    required this.studentId,
+    required this.courseAndSection,
+    required this.remarks,
+    required this.itemDesc,
+    required this.crNumber,
+    required this.issuanceNo,
+  });
+}
+
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({super.key});
 
@@ -40,6 +66,10 @@ class QRScannerScreenState extends State<QRScannerScreen>
   QRViewController? controller;
   bool isScanning = false;
   TabController? _tabController;
+
+  // New variables for batch processing
+  List<SalesItem> currentBatch = [];
+  Map<String, String> lastTransaction = {};
 
   @override
   void initState() {
@@ -59,6 +89,13 @@ class QRScannerScreenState extends State<QRScannerScreen>
             Tab(text: 'Maintenance'),
           ],
         ),
+        actions: [
+          if (currentBatch.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.shopping_cart),
+              onPressed: _showCurrentBatch,
+            ),
+        ],
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 500),
@@ -177,83 +214,91 @@ class QRScannerScreenState extends State<QRScannerScreen>
   }
 
   void _showSalesConfirmationDialog(String qrCode) {
+    // Controllers with retained values from last transaction
     TextEditingController itemCountController = TextEditingController();
-    TextEditingController studentNameController = TextEditingController();
+    TextEditingController studentNameController = TextEditingController(
+      text: lastTransaction['studentName'] ?? '',
+    );
+    TextEditingController studentIdController = TextEditingController(
+      text: lastTransaction['studentId'] ?? '',
+    );
+    TextEditingController courseAndSectionController = TextEditingController(
+      text: lastTransaction['courseAndSection'] ?? '',
+    );
     TextEditingController remarksController = TextEditingController();
     TextEditingController itemDescController = TextEditingController();
-    TextEditingController crNumberController = TextEditingController();
-    TextEditingController issuanceNoController = TextEditingController();
-    TextEditingController courseAndSectionController = TextEditingController();
-    TextEditingController studentIdController = TextEditingController();
+    TextEditingController crNumberController = TextEditingController(
+      text: lastTransaction['crNumber'] ?? '',
+    );
+    TextEditingController issuanceNoController = TextEditingController(
+      text: lastTransaction['issuanceNo'] ?? '',
+    );
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Add Sales Record'),
+          title: const Text('Add to Current Transaction'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('QR code: $qrCode'),
-                const SizedBox(height: 10),
-                // Product ID (from qrCode)
+                Text('Product ID: $qrCode'),
                 TextField(
                   controller: itemCountController,
-                  keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Enter item count',
+                    labelText: 'Item Count',
+                    hintText: 'Enter item count',
                   ),
+                  keyboardType: TextInputType.number,
                 ),
-                const SizedBox(height: 10),
                 TextField(
                   controller: studentNameController,
                   decoration: const InputDecoration(
-                    labelText: 'Issued to',
+                    labelText: 'Student Name',
+                    hintText: 'Enter student name',
                   ),
                 ),
-                const SizedBox(height: 10),
                 TextField(
                   controller: studentIdController,
                   decoration: const InputDecoration(
                     labelText: 'Student ID',
+                    hintText: 'Enter student ID',
                   ),
                 ),
-                const SizedBox(height: 10),
                 TextField(
                   controller: courseAndSectionController,
                   decoration: const InputDecoration(
                     labelText: 'Course and Section',
+                    hintText: 'Enter course and section',
                   ),
                 ),
-                const SizedBox(height: 10),
                 TextField(
                   controller: remarksController,
                   decoration: const InputDecoration(
                     labelText: 'Remarks',
+                    hintText: 'Enter remarks',
                   ),
                 ),
-                const SizedBox(height: 10),
                 TextField(
                   controller: itemDescController,
                   decoration: const InputDecoration(
                     labelText: 'Item Description',
+                    hintText: 'Enter item description',
                   ),
                 ),
-                const SizedBox(height: 10),
                 TextField(
                   controller: crNumberController,
-                  keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'OR Number',
+                    hintText: 'Enter OR number',
                   ),
                 ),
-                const SizedBox(height: 10),
                 TextField(
                   controller: issuanceNoController,
-                  keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'Issuance No',
+                    hintText: 'Enter issuance number',
                   ),
                 ),
               ],
@@ -262,38 +307,42 @@ class QRScannerScreenState extends State<QRScannerScreen>
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Add More Items'),
               onPressed: () {
+                _addToCurrentBatch(
+                  qrCode,
+                  itemCountController,
+                  studentNameController,
+                  studentIdController,
+                  courseAndSectionController,
+                  remarksController,
+                  itemDescController,
+                  crNumberController,
+                  issuanceNoController,
+                );
                 Navigator.of(context).pop();
+                _toggleScanning(); // Resume scanning
               },
             ),
             TextButton(
-              child: const Text('Add'),
+              child: const Text('Complete Transaction'),
               onPressed: () {
-                final itemCount = int.tryParse(itemCountController.text);
-                final studentName = studentNameController.text.trim();
-                final remarks = remarksController.text.trim();
-                final itemDesc = itemDescController.text.trim();
-                final crNumber = crNumberController.text.trim();
-                final issuanceNo = issuanceNoController.text.trim();
-                final courseAndSection = courseAndSectionController.text.trim();
-                final studentId = studentIdController.text.trim();
-
-                if (itemCount == null || itemCount <= 0) {
-                  _showErrorSnackBar('Please enter a valid item count.');
-                } else {
-                  Navigator.of(context).pop();
-                  _addToSalesDatabase(
-                    qrCode,
-                    itemCount,
-                    studentName,
-                    studentId,
-                    courseAndSection,
-                    remarks,
-                    itemDesc,
-                    crNumber,
-                    issuanceNo,
-                  );
-                }
+                _addToCurrentBatch(
+                  qrCode,
+                  itemCountController,
+                  studentNameController,
+                  studentIdController,
+                  courseAndSectionController,
+                  remarksController,
+                  itemDescController,
+                  crNumberController,
+                  issuanceNoController,
+                );
+                Navigator.of(context).pop();
+                _processBatch();
               },
             ),
           ],
@@ -302,65 +351,153 @@ class QRScannerScreenState extends State<QRScannerScreen>
     );
   }
 
-  Future<void> _addToSalesDatabase(
-      String qrCode,
-      int itemCount,
-      String studentName,
-      String studentId,
-      String courseAndSection,
-      String remarks,
-      String itemDesc,
-      String crNumber,
-      String issuanceNo) async {
+  void _addToCurrentBatch(
+    String qrCode,
+    TextEditingController itemCountController,
+    TextEditingController studentNameController,
+    TextEditingController studentIdController,
+    TextEditingController courseAndSectionController,
+    TextEditingController remarksController,
+    TextEditingController itemDescController,
+    TextEditingController crNumberController,
+    TextEditingController issuanceNoController,
+  ) {
+    // Save current transaction info for next scan
+    lastTransaction = {
+      'studentName': studentNameController.text,
+      'studentId': studentIdController.text,
+      'courseAndSection': courseAndSectionController.text,
+      'crNumber': crNumberController.text,
+      'issuanceNo': issuanceNoController.text,
+    };
+
+    // Add item to current batch
+    final itemCount = int.tryParse(itemCountController.text) ?? 0;
+    if (itemCount > 0) {
+      currentBatch.add(SalesItem(
+        productId: qrCode,
+        itemCount: itemCount,
+        amount: 0, // Will be calculated when processing
+        studentName: studentNameController.text,
+        studentId: studentIdController.text,
+        courseAndSection: courseAndSectionController.text,
+        remarks: remarksController.text,
+        itemDesc: itemDescController.text,
+        crNumber: crNumberController.text,
+        issuanceNo: issuanceNoController.text,
+      ));
+    }
+  }
+
+  void _showCurrentBatch() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Current Transaction'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: currentBatch
+                  .map((item) => ListTile(
+                        title: Text('Product: ${item.productId}'),
+                        subtitle: Text('Quantity: ${item.itemCount}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              currentBatch.remove(item);
+                            });
+                            Navigator.pop(context);
+                            if (currentBatch.isNotEmpty) {
+                              _showCurrentBatch();
+                            }
+                          },
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Continue Shopping'),
+              onPressed: () {
+                Navigator.pop(context);
+                _toggleScanning();
+              },
+            ),
+            TextButton(
+              child: const Text('Complete Transaction'),
+              onPressed: () {
+                Navigator.pop(context);
+                _processBatch();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _processBatch() async {
     try {
-      qrCode = qrCode.replaceAll('"', '');
+      for (var item in currentBatch) {
+        print("Product ID: ${item.productId}");
+        print("Item Count: ${item.itemCount}");
+        print("Amount: ${item.amount}");
+        print("Student Name: ${item.studentName}");
+        print("Student ID: ${item.studentId}");
+        print("Course and Section: ${item.courseAndSection}");
+        print("Remarks: ${item.remarks}");
+        print("Item Description: ${item.itemDesc}");
+        print("CR Number: ${item.crNumber}");
+        print("Issuance No: ${item.issuanceNo}");
 
-      final inventoryResponse = await Supabase.instance.client
-          .from('inventory')
-          .select('price, item_count')
-          .eq('id', qrCode)
-          .single();
+        final productId =
+            item.productId.replaceAll(" ", "").replaceAll('"', "");
+        // Fetch inventory
+        print("Fetching inventory for product ID: $productId");
+        final inventoryResponse = await Supabase.instance.client
+            .from('inventory')
+            .select('price, item_count')
+            .eq('id', productId)
+            .single();
 
-      final price = inventoryResponse['price'];
-      final inventoryItemCount = inventoryResponse['item_count'];
+        final price = inventoryResponse['price'];
+        final inventoryItemCount = inventoryResponse['item_count'];
 
-      print(inventoryResponse);
-      if (price == null || inventoryItemCount == null) {
-        _showErrorSnackBar('Product not found for ID: $qrCode');
-        return;
+        if (item.itemCount > inventoryItemCount) {
+          _showErrorSnackBar(
+              'Not enough items in inventory for ${item.productId}. Available: $inventoryItemCount');
+          return;
+        }
+
+        final amount = price * item.itemCount;
+
+        await Supabase.instance.client.from('sales').insert({
+          'product_id': productId,
+          'item_count': item.itemCount,
+          'amount': amount,
+          'student_name': item.studentName,
+          'student_id': item.studentId,
+          'course_and_section': item.courseAndSection,
+          'remarks': item.remarks,
+          'item_desc': item.itemDesc,
+          'cr_number': item.crNumber,
+          'issuance_no': item.issuanceNo,
+        });
+
+        await Supabase.instance.client
+            .from('inventory')
+            .update({'item_count': inventoryItemCount - item.itemCount}).eq(
+                'id', productId);
       }
 
-      if (itemCount > inventoryItemCount) {
-        _showErrorSnackBar(
-            'Not enough items in inventory. Available: $inventoryItemCount');
-        return;
-      }
-
-      final amount = price * itemCount;
-
-      // Insert sale into sales table with additional fields
-      await Supabase.instance.client.from('sales').insert({
-        'product_id': qrCode,
-        'item_count': itemCount,
-        'amount': amount,
-        'student_name': studentName,
-        'student_id': studentId,
-        'course_and_section': courseAndSection,
-        'remarks': remarks,
-        'item_desc': itemDesc,
-        'cr_number': crNumber,
-        'issuance_no': issuanceNo,
+      _showSuccessSnackBar('All items processed successfully!');
+      setState(() {
+        currentBatch.clear();
       });
-
-      // Update inventory
-      await Supabase.instance.client.from('inventory').update(
-          {'item_count': inventoryItemCount - itemCount}).eq('id', qrCode);
-
-      _showSuccessSnackBar('Sale added successfully!');
-    } catch (e, stackTrace) {
-      print('Error details: $e');
-      print('Stack trace: $stackTrace');
-      _showErrorSnackBar('An error occurred: $e');
+    } catch (e) {
+      _showErrorSnackBar('Error processing batch: $e');
     }
   }
 
