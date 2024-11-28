@@ -380,49 +380,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
   }
 
   Future<void> _processBatch() async {
-    // Prompt for OR Number before processing
-    final orNumberController = TextEditingController();
-
-    // Show OR Number input dialog
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Enter OR Number'),
-          content: TextField(
-            controller: orNumberController,
-            decoration: const InputDecoration(
-              labelText: 'OR Number',
-              hintText: 'Enter Official Receipt Number',
-            ),
-            keyboardType: TextInputType.number,
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-            ),
-            TextButton(
-              child: const Text('Confirm'),
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-            ),
-          ],
-        );
-      },
-    );
-
-    // Check if OR number was provided
-    if (orNumberController.text.isEmpty) {
-      _showErrorSnackBar('OR Number is required');
-      return;
-    }
-
-    final orNumber = orNumberController.text;
-
     try {
       // Get the next issuance number
       final issuanceResponse = await Supabase.instance.client
@@ -466,7 +423,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
           'remarks': item.remarks,
           'item_desc': item.itemDesc,
           'item_type': item.itemType,
-          'or_number': orNumber,
           'issuance_no': nextIssuanceNo,
         });
 
@@ -476,8 +432,7 @@ class QRScannerScreenState extends State<QRScannerScreen>
                 'id', productId);
       }
 
-      _showSuccessSnackBar(
-          'All items processed successfully with OR Number: $orNumber');
+      _showSuccessSnackBar('All items processed successfully');
       setState(() {
         currentBatch.clear();
       });
