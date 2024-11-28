@@ -63,7 +63,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
           controller: _tabController,
           tabs: const [
             Tab(text: 'Sales'),
-            Tab(text: 'Maintenance'),
           ],
         ),
         actions: [
@@ -87,7 +86,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
           physics: const BouncingScrollPhysics(), // For smoother swipe effect
           children: [
             buildSalesTab(),
-            buildMaintenanceTab(),
           ],
         ),
       ),
@@ -125,38 +123,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
     );
   }
 
-  Widget buildMaintenanceTab() {
-    return Column(
-      children: <Widget>[
-        Expanded(
-          flex: 5,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              QRView(
-                key: qrKey,
-                onQRViewCreated: _onQRViewCreated,
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.red, width: 2),
-                ),
-                width: 200,
-                height: 200,
-              ),
-            ],
-          ),
-        ),
-        ElevatedButton(
-          onPressed: _toggleScanning,
-          child: Text(isScanning
-              ? 'Stop Maintenance Scanning'
-              : 'Start Maintenance Scanning'),
-        ),
-      ],
-    );
-  }
-
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
     controller.scannedDataStream.listen((scanData) {
@@ -165,8 +131,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
         final isSalesTab = _tabController?.index == 0;
         if (isSalesTab) {
           _showSalesConfirmationDialog(scanData.code!);
-        } else {
-          _showMaintenanceConfirmationDialog(scanData.code!);
         }
       }
     });
@@ -520,111 +484,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
     } catch (e) {
       _showErrorSnackBar('Error processing batch: $e');
     }
-  }
-
-  Future<void> _showMaintenanceRecords(String qrCode) async {
-    final equipmentId = int.parse(qrCode);
-    print('Equipment ID: $equipmentId');
-
-    try {
-      // Fetch maintenance records for the given equipment
-      final maintenanceResponse = await Supabase.instance.client
-          .from('maintenance')
-          .select('date_maintained, equipment_name')
-          .eq('equipment_id', equipmentId)
-          .order('date_maintained', ascending: false);
-
-      print('Maintenance records: $maintenanceResponse');
-
-      if (maintenanceResponse.isEmpty) {
-        _showErrorSnackBar(
-            'No maintenance records found for equipment ID: $equipmentId');
-        return;
-      }
-
-      // Fetch days_interval from the equipments table
-      final equipmentResponse = await Supabase.instance.client
-          .from('equipments')
-          .select('days_interval, name')
-          .eq('id', equipmentId)
-          .single();
-
-      print('Equipment response: $equipmentResponse');
-
-      final equipmentName = equipmentResponse['name'];
-      final daysInterval = equipmentResponse['days_interval'];
-
-      final lastMaintenanceDate =
-          DateTime.parse(maintenanceResponse.first['date_maintained']);
-      final nextMaintenanceDate =
-          lastMaintenanceDate.add(Duration(days: daysInterval));
-
-      // Show the maintenance records in a dialog
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Maintenance Records for $equipmentName'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text('Previous Maintenance Date: $lastMaintenanceDate'),
-                Text('Next Maintenance Date: $nextMaintenanceDate'),
-                const Divider(),
-                ...maintenanceResponse.map<Widget>((record) {
-                  return ListTile(
-                    title:
-                        Text('Date Maintained: ${record['date_maintained']}'),
-                    subtitle: Text('Equipment: ${record['equipment_name']}'),
-                  );
-                }).toList(),
-              ],
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Close'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e, stackTrace) {
-      print('Error: $e');
-      print('Stack trace: $stackTrace');
-      _showErrorSnackBar('An error occurred: $e');
-    }
-  }
-
-  // Maintenance confirmation dialog
-  void _showMaintenanceConfirmationDialog(String qrCode) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Maintenance'),
-          content: Text(
-              'Do you want to retrieve maintenance records for equipment ID: $qrCode?'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Confirm'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _showMaintenanceRecords(qrCode);
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showSuccessSnackBar(String message) {
