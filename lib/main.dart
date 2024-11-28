@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:qrcode_scanner/sales_item.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Sales Table
+//INSERT INTO "public"."sales" ("item_count", "amount", "last_modified", "student_name", "remarks", "item_desc", "or_number", "id", "product_id", "course_and_section", "student_id", "issuance_no", "item_type") VALUES ('2', '440', '2024-11-21 09:05:56.675702+00', 'Eirra', 'Good', 'Washday Male 3XL', '123456789', '37', 'PTWFYB001-007', 'BSIT401A', '274626', '4', ''), ('1', '380', '2024-11-21 09:06:10.263963+00', 'Eirra ', 'n/a', 'IT Blouse M', '123456789', '44', 'UITB001-003', 'BSIT401A', '274626', '5', ''), ('2', '600', '2024-11-22 01:34:05.43907+00', 'Angelou', 'NA', 'NA', '', '51', 'UBF001-001', 'BSIT401', '02000', '6', ''), ('2', '600', '2024-11-22 01:38:57.601223+00', 'Angie', 'na', 'na', '001', '52', 'UBF001-001', 'BSIT', '02000', '7', ''), ('3', '900', '2024-11-22 01:39:37.415963+00', 'Lou', 'na', 'na', '001', '53', 'UBF001-001', 'bsit', '0284', '8', ''), ('1', '220', '2024-11-22 07:24:54.233929+00', 'dsad', '', 'wa', '202', '54', 'PTWFYB001-001', 'bsit', '02391', '9', ''), ('2', '440', '2024-11-23 13:50:02.008528+00', 'Marian', 'Good', 'Test ', '404', '57', 'PTWFYB001-001', 'BSIT-4G ', '9', '10', '');
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
@@ -25,32 +28,6 @@ class MyApp extends StatelessWidget {
       home: const QRScannerScreen(),
     );
   }
-}
-
-class SalesItem {
-  final String productId;
-  final int itemCount;
-  final double amount;
-  final String studentName;
-  final String studentId;
-  final String courseAndSection;
-  final String remarks;
-  final String itemDesc;
-  final String crNumber;
-  final String issuanceNo;
-
-  SalesItem({
-    required this.productId,
-    required this.itemCount,
-    required this.amount,
-    required this.studentName,
-    required this.studentId,
-    required this.courseAndSection,
-    required this.remarks,
-    required this.itemDesc,
-    required this.crNumber,
-    required this.issuanceNo,
-  });
 }
 
 class QRScannerScreen extends StatefulWidget {
@@ -227,125 +204,128 @@ class QRScannerScreenState extends State<QRScannerScreen>
     );
     TextEditingController remarksController = TextEditingController();
     TextEditingController itemDescController = TextEditingController();
-    TextEditingController crNumberController = TextEditingController(
-      text: lastTransaction['crNumber'] ?? '',
-    );
-    TextEditingController issuanceNoController = TextEditingController(
-      text: lastTransaction['issuanceNo'] ?? '',
-    );
+
+    // Item type dropdown value
+    String? selectedItemType = lastTransaction['itemType'];
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Add to Current Transaction'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Product ID: $qrCode'),
-                TextField(
-                  controller: itemCountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Item Count',
-                    hintText: 'Enter item count',
-                  ),
-                  keyboardType: TextInputType.number,
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: const Text('Add to Current Transaction'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Product ID: $qrCode'),
+                    TextField(
+                      controller: itemCountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Item Count',
+                        hintText: 'Enter item count',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: selectedItemType,
+                      decoration: const InputDecoration(
+                        labelText: 'Item Type',
+                        hintText: 'Select item type',
+                      ),
+                      items: ['Proware', 'Uniform']
+                          .map((type) => DropdownMenuItem(
+                                value: type,
+                                child: Text(type),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedItemType = value;
+                        });
+                      },
+                    ),
+                    TextField(
+                      controller: studentNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Issued To',
+                        hintText: 'Enter student name',
+                      ),
+                    ),
+                    TextField(
+                      controller: studentIdController,
+                      decoration: const InputDecoration(
+                        labelText: 'Student ID',
+                        hintText: 'Enter student ID',
+                      ),
+                    ),
+                    TextField(
+                      controller: courseAndSectionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Course and Section',
+                        hintText: 'Enter course and section',
+                      ),
+                    ),
+                    TextField(
+                      controller: remarksController,
+                      decoration: const InputDecoration(
+                        labelText: 'Remarks',
+                        hintText: 'Enter remarks',
+                      ),
+                    ),
+                    TextField(
+                      controller: itemDescController,
+                      decoration: const InputDecoration(
+                        labelText: 'Item Description',
+                        hintText: 'Enter item description',
+                      ),
+                    ),
+                  ],
                 ),
-                TextField(
-                  controller: studentNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Student Name',
-                    hintText: 'Enter student name',
-                  ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
-                TextField(
-                  controller: studentIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'Student ID',
-                    hintText: 'Enter student ID',
-                  ),
+                TextButton(
+                  child: const Text('Add More Items'),
+                  onPressed: () {
+                    _addToCurrentBatch(
+                      qrCode,
+                      itemCountController,
+                      studentNameController,
+                      studentIdController,
+                      courseAndSectionController,
+                      remarksController,
+                      itemDescController,
+                      selectedItemType,
+                    );
+                    Navigator.of(context).pop();
+                    _toggleScanning(); // Resume scanning
+                  },
                 ),
-                TextField(
-                  controller: courseAndSectionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Course and Section',
-                    hintText: 'Enter course and section',
-                  ),
-                ),
-                TextField(
-                  controller: remarksController,
-                  decoration: const InputDecoration(
-                    labelText: 'Remarks',
-                    hintText: 'Enter remarks',
-                  ),
-                ),
-                TextField(
-                  controller: itemDescController,
-                  decoration: const InputDecoration(
-                    labelText: 'Item Description',
-                    hintText: 'Enter item description',
-                  ),
-                ),
-                TextField(
-                  controller: crNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'OR Number',
-                    hintText: 'Enter OR number',
-                  ),
-                ),
-                TextField(
-                  controller: issuanceNoController,
-                  decoration: const InputDecoration(
-                    labelText: 'Issuance No',
-                    hintText: 'Enter issuance number',
-                  ),
+                TextButton(
+                  child: const Text('Complete Transaction'),
+                  onPressed: () {
+                    _addToCurrentBatch(
+                      qrCode,
+                      itemCountController,
+                      studentNameController,
+                      studentIdController,
+                      courseAndSectionController,
+                      remarksController,
+                      itemDescController,
+                      selectedItemType,
+                    );
+                    Navigator.of(context).pop();
+                    _processBatch();
+                  },
                 ),
               ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Add More Items'),
-              onPressed: () {
-                _addToCurrentBatch(
-                  qrCode,
-                  itemCountController,
-                  studentNameController,
-                  studentIdController,
-                  courseAndSectionController,
-                  remarksController,
-                  itemDescController,
-                  crNumberController,
-                  issuanceNoController,
-                );
-                Navigator.of(context).pop();
-                _toggleScanning(); // Resume scanning
-              },
-            ),
-            TextButton(
-              child: const Text('Complete Transaction'),
-              onPressed: () {
-                _addToCurrentBatch(
-                  qrCode,
-                  itemCountController,
-                  studentNameController,
-                  studentIdController,
-                  courseAndSectionController,
-                  remarksController,
-                  itemDescController,
-                  crNumberController,
-                  issuanceNoController,
-                );
-                Navigator.of(context).pop();
-                _processBatch();
-              },
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -359,32 +339,29 @@ class QRScannerScreenState extends State<QRScannerScreen>
     TextEditingController courseAndSectionController,
     TextEditingController remarksController,
     TextEditingController itemDescController,
-    TextEditingController crNumberController,
-    TextEditingController issuanceNoController,
+    String? itemType,
   ) {
     // Save current transaction info for next scan
     lastTransaction = {
       'studentName': studentNameController.text,
       'studentId': studentIdController.text,
       'courseAndSection': courseAndSectionController.text,
-      'crNumber': crNumberController.text,
-      'issuanceNo': issuanceNoController.text,
+      'itemType': itemType.toString(),
     };
 
     // Add item to current batch
     final itemCount = int.tryParse(itemCountController.text) ?? 0;
+
     if (itemCount > 0) {
       currentBatch.add(SalesItem(
         productId: qrCode,
         itemCount: itemCount,
-        amount: 0, // Will be calculated when processing
         studentName: studentNameController.text,
         studentId: studentIdController.text,
         courseAndSection: courseAndSectionController.text,
         remarks: remarksController.text,
         itemDesc: itemDescController.text,
-        crNumber: crNumberController.text,
-        issuanceNo: issuanceNoController.text,
+        itemType: itemType ?? '',
       ));
     }
   }
@@ -439,23 +416,65 @@ class QRScannerScreenState extends State<QRScannerScreen>
   }
 
   Future<void> _processBatch() async {
-    try {
-      for (var item in currentBatch) {
-        print("Product ID: ${item.productId}");
-        print("Item Count: ${item.itemCount}");
-        print("Amount: ${item.amount}");
-        print("Student Name: ${item.studentName}");
-        print("Student ID: ${item.studentId}");
-        print("Course and Section: ${item.courseAndSection}");
-        print("Remarks: ${item.remarks}");
-        print("Item Description: ${item.itemDesc}");
-        print("CR Number: ${item.crNumber}");
-        print("Issuance No: ${item.issuanceNo}");
+    // Prompt for OR Number before processing
+    final orNumberController = TextEditingController();
 
+    // Show OR Number input dialog
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enter OR Number'),
+          content: TextField(
+            controller: orNumberController,
+            decoration: const InputDecoration(
+              labelText: 'OR Number',
+              hintText: 'Enter Official Receipt Number',
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Confirm'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    // Check if OR number was provided
+    if (orNumberController.text.isEmpty) {
+      _showErrorSnackBar('OR Number is required');
+      return;
+    }
+
+    final orNumber = orNumberController.text;
+
+    try {
+      // Get the next issuance number
+      final issuanceResponse = await Supabase.instance.client
+          .from('sales')
+          .select('issuance_no')
+          .order('issuance_no', ascending: false)
+          .limit(1)
+          .single();
+
+      final nextIssuanceNo = (issuanceResponse['issuance_no'] as int) + 1;
+
+      for (var item in currentBatch) {
         final productId =
             item.productId.replaceAll(" ", "").replaceAll('"', "");
+
         // Fetch inventory
-        print("Fetching inventory for product ID: $productId");
         final inventoryResponse = await Supabase.instance.client
             .from('inventory')
             .select('price, item_count')
@@ -482,8 +501,9 @@ class QRScannerScreenState extends State<QRScannerScreen>
           'course_and_section': item.courseAndSection,
           'remarks': item.remarks,
           'item_desc': item.itemDesc,
-          'cr_number': item.crNumber,
-          'issuance_no': item.issuanceNo,
+          'item_type': item.itemType,
+          'or_number': orNumber,
+          'issuance_no': nextIssuanceNo,
         });
 
         await Supabase.instance.client
@@ -492,7 +512,8 @@ class QRScannerScreenState extends State<QRScannerScreen>
                 'id', productId);
       }
 
-      _showSuccessSnackBar('All items processed successfully!');
+      _showSuccessSnackBar(
+          'All items processed successfully with OR Number: $orNumber');
       setState(() {
         currentBatch.clear();
       });
