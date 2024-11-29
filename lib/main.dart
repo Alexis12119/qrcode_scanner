@@ -169,9 +169,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
     TextEditingController remarksController = TextEditingController();
     TextEditingController itemDescController = TextEditingController();
 
-    // Item type dropdown value
-    String? selectedItemType = lastTransaction['itemType'];
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -191,24 +188,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
                         hintText: 'Enter item count',
                       ),
                       keyboardType: TextInputType.number,
-                    ),
-                    DropdownButtonFormField<String>(
-                      value: selectedItemType,
-                      decoration: const InputDecoration(
-                        labelText: 'Item Type',
-                        hintText: 'Select item type',
-                      ),
-                      items: ['Proware', 'Uniform']
-                          .map((type) => DropdownMenuItem(
-                                value: type,
-                                child: Text(type),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedItemType = value;
-                        });
-                      },
                     ),
                     TextField(
                       controller: studentNameController,
@@ -231,20 +210,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
                         hintText: 'Enter course and section',
                       ),
                     ),
-                    TextField(
-                      controller: remarksController,
-                      decoration: const InputDecoration(
-                        labelText: 'Remarks',
-                        hintText: 'Enter remarks',
-                      ),
-                    ),
-                    TextField(
-                      controller: itemDescController,
-                      decoration: const InputDecoration(
-                        labelText: 'Item Description',
-                        hintText: 'Enter item description',
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -264,7 +229,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
                       courseAndSectionController,
                       remarksController,
                       itemDescController,
-                      selectedItemType,
                     );
                     Navigator.of(context).pop();
                     _toggleScanning(); // Resume scanning
@@ -281,7 +245,6 @@ class QRScannerScreenState extends State<QRScannerScreen>
                       courseAndSectionController,
                       remarksController,
                       itemDescController,
-                      selectedItemType,
                     );
                     Navigator.of(context).pop();
                     _processBatch();
@@ -303,8 +266,12 @@ class QRScannerScreenState extends State<QRScannerScreen>
     TextEditingController courseAndSectionController,
     TextEditingController remarksController,
     TextEditingController itemDescController,
-    String? itemType,
   ) {
+    final qrCodeClean = qrCode.replaceAll(" ", "").replaceAll('"', "");
+    final String itemType = qrCodeClean.startsWith('P') ? 'Proware' : 'Uniform';
+    print('QR code: $qrCode');
+    print('Item type: $itemType');
+
     // Save current transaction info for next scan
     lastTransaction = {
       'studentName': studentNameController.text,
@@ -318,14 +285,14 @@ class QRScannerScreenState extends State<QRScannerScreen>
 
     if (itemCount > 0) {
       currentBatch.add(SalesItem(
-        productId: qrCode,
+        productId: qrCodeClean,
         itemCount: itemCount,
         studentName: studentNameController.text,
         studentId: studentIdController.text,
         courseAndSection: courseAndSectionController.text,
         remarks: remarksController.text,
         itemDesc: itemDescController.text,
-        itemType: itemType ?? '',
+        itemType: itemType,
       ));
     }
   }
